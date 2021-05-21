@@ -1,0 +1,193 @@
+Kube-Bench
+
+Introducing The CIS Amazon EKS Benchmark
+https://aws.amazon.com/blogs/containers/introducing-cis-amazon-eks-benchmark/
+
+
+https://github.com/aquasecurity/kube-bench
+
+CMD =>
+git clone https://github.com/aquasecurity/kube-bench.git
+
+OUT =>
+Cloning into 'kube-bench'...
+remote: Enumerating objects: 3691, done.
+remote: Counting objects: 100% (95/95), done.
+remote: Compressing objects: 100% (73/73), done.
+remote: Total 3691 (delta 41), reused 53 (delta 22), pack-reused 3596
+Receiving objects: 100% (3691/3691), 7.68 MiB | 14.50 MiB/s, done.
+Resolving deltas: 100% (2312/2312), done.
+
+CMD =>
+cd kube-bench
+
+CMD =>
+aws ecr create-repository --repository-name k8s/kube-bench --image-tag-mutability MUTABLE
+
+OUT =>
+{
+    "repository": {
+        "repositoryArn": "arn:aws:ecr:us-west-2:758878116931:repository/k8s/kube-bench",
+        "registryId": "758878116931",
+        "repositoryName": "k8s/kube-bench",
+        "repositoryUri": "758878116931.dkr.ecr.us-west-2.amazonaws.com/k8s/kube-bench",
+        "createdAt": "2021-05-10T13:21:43+08:00",
+        "imageTagMutability": "MUTABLE",
+        "imageScanningConfiguration": {
+            "scanOnPush": false
+        }
+    }
+}
+
+CMD =>
+aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin 758878116931.dkr.ecr.us-west-2.amazonaws.com
+
+OUT =>
+Login Succeeded
+
+CMD =>
+update Dockerfile to add "ARG GOPROXY=direct"
+
+CMD =>
+docker build -t k8s/kube-bench .
+
+OUT =>
+Sending build context to Docker daemon  9.638MB
+Step 1/25 : FROM golang:1.16 AS build
+ ---> 64bd1a7b99b7
+Step 2/25 : WORKDIR /go/src/github.com/aquasecurity/kube-bench/
+ ---> Using cache
+ ---> d9cf85aa1e58
+Step 3/25 : COPY go.mod go.sum ./
+ ---> Using cache
+ ---> 42dc26c3323b
+Step 4/25 : COPY main.go .
+ ---> Using cache
+ ---> c69d845f264e
+Step 5/25 : COPY check/ check/
+ ---> Using cache
+ ---> 93214ac8407b
+Step 6/25 : COPY cmd/ cmd/
+ ---> Using cache
+ ---> 2c3fb557121d
+Step 7/25 : COPY internal/ internal/
+ ---> Using cache
+ ---> 1f421ea513f1
+Step 8/25 : ARG GOPROXY=direct
+ ---> Running in d78875c1592f
+Removing intermediate container d78875c1592f
+ ---> f3e921caf318
+Step 9/25 : ARG KUBEBENCH_VERSION
+ ---> Running in a3071d2f1016
+Removing intermediate container a3071d2f1016
+ ---> 785da5f25203
+Step 10/25 : ARG GOOS=linux
+ ---> Running in 93677d49061e
+Removing intermediate container 93677d49061e
+ ---> a64f7d5dabe1
+Step 11/25 : ARG GOARCH=amd64
+ ---> Running in 13c5d4c4cdba
+Removing intermediate container 13c5d4c4cdba
+ ---> ba6512c6dc58
+Step 12/25 : RUN GO111MODULE=on CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build -a -ldflags "-X github.com/aquasecurity/kube-bench/cmd.KubeBenchVersion=${KUBEBENCH_VERSION} -w" -o /go/bin/kube-bench
+ ---> Running in 9fb6a749e9f7
+go: downloading github.com/aws/aws-sdk-go v1.35.28
+go: downloading github.com/fatih/color v1.5.0
+go: downloading github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
+go: downloading github.com/jinzhu/gorm v0.0.0-20160404144928-5174cc5c242a
+go: downloading github.com/spf13/cobra v0.0.3
+go: downloading github.com/spf13/viper v1.4.0
+go: downloading github.com/onsi/ginkgo v1.10.1
+go: downloading gopkg.in/yaml.v2 v2.2.8
+go: downloading k8s.io/client-go v11.0.0+incompatible
+go: downloading github.com/pkg/errors v0.9.1
+go: downloading github.com/mattn/go-colorable v0.0.0-20170210172801-5411d3eea597
+go: downloading github.com/mattn/go-isatty v0.0.0-20170307163044-57fdcb988a5c
+go: downloading github.com/jinzhu/inflection v0.0.0-20170102125226-1c35d901db3d
+go: downloading github.com/lib/pq v0.0.0-20171126050459-83612a56d3dd
+go: downloading github.com/spf13/pflag v1.0.3
+go: downloading github.com/fsnotify/fsnotify v1.4.7
+go: downloading github.com/hashicorp/hcl v1.0.0
+go: downloading github.com/magiconair/properties v1.8.0
+go: downloading github.com/mitchellh/mapstructure v1.1.2
+go: downloading github.com/pelletier/go-toml v1.2.0
+go: downloading github.com/spf13/afero v1.2.2
+go: downloading github.com/spf13/jwalterweatherman v1.0.0
+go: downloading github.com/spf13/cast v1.3.0
+go: downloading golang.org/x/sys v0.0.0-20190621203818-d432491b9138
+go: downloading golang.org/x/text v0.3.2
+go: downloading github.com/jmespath/go-jmespath v0.4.0
+Removing intermediate container 9fb6a749e9f7
+ ---> e7fb2498a3cf
+Step 13/25 : FROM alpine:3.13 AS run
+3.13: Pulling from library/alpine
+540db60ca938: Pull complete
+Digest: sha256:69e70a79f2d41ab5d637de98c1e0b055206ba40a8145e7bddb55ccc04e13cf8f
+Status: Downloaded newer image for alpine:3.13
+ ---> 6dbb9cc54074
+Step 14/25 : WORKDIR /opt/kube-bench/
+ ---> Running in 9f70441c4d17
+Removing intermediate container 9f70441c4d17
+ ---> 092fb1628ebd
+Step 15/25 : RUN apk --no-cache add procps
+ ---> Running in aac2c96785cf
+fetch https://dl-cdn.alpinelinux.org/alpine/v3.13/main/x86_64/APKINDEX.tar.gz
+fetch https://dl-cdn.alpinelinux.org/alpine/v3.13/community/x86_64/APKINDEX.tar.gz
+(1/5) Installing libintl (0.20.2-r2)
+(2/5) Installing ncurses-terminfo-base (6.2_p20210109-r0)
+(3/5) Installing ncurses-libs (6.2_p20210109-r0)
+(4/5) Installing libproc (3.3.16-r0)
+(5/5) Installing procps (3.3.16-r0)
+Executing busybox-1.32.1-r6.trigger
+OK: 7 MiB in 19 packages
+Removing intermediate container aac2c96785cf
+ ---> 96fdbd7983bc
+Step 16/25 : RUN apk --no-cache add openssl
+ ---> Running in 26e4f9b1eee1
+fetch https://dl-cdn.alpinelinux.org/alpine/v3.13/main/x86_64/APKINDEX.tar.gz
+fetch https://dl-cdn.alpinelinux.org/alpine/v3.13/community/x86_64/APKINDEX.tar.gz
+(1/1) Installing openssl (1.1.1k-r0)
+Executing busybox-1.32.1-r6.trigger
+OK: 8 MiB in 20 packages
+Removing intermediate container 26e4f9b1eee1
+ ---> 1f62e7ada632
+Step 17/25 : ENV PATH=$PATH:/usr/local/mount-from-host/bin
+ ---> Running in 4362bdc1adf4
+Removing intermediate container 4362bdc1adf4
+ ---> 3ac58569936a
+Step 18/25 : COPY --from=build /go/bin/kube-bench /usr/local/bin/kube-bench
+ ---> 9fd656fed446
+Step 19/25 : COPY entrypoint.sh .
+ ---> f312d1b7451f
+Step 20/25 : COPY cfg/ cfg/
+ ---> 4e3429d1350d
+Step 21/25 : ENTRYPOINT ["./entrypoint.sh"]
+ ---> Running in 3f07340354c3
+Removing intermediate container 3f07340354c3
+ ---> 601bed153103
+Step 22/25 : CMD ["install"]
+ ---> Running in 97c609cab911
+Removing intermediate container 97c609cab911
+ ---> 6c927f2a715b
+Step 23/25 : ARG BUILD_DATE
+ ---> Running in d313ae2b7090
+Removing intermediate container d313ae2b7090
+ ---> 8bce075b62b5
+Step 24/25 : ARG VCS_REF
+ ---> Running in 8f0cb0249e80
+Removing intermediate container 8f0cb0249e80
+ ---> fe1e62335d11
+Step 25/25 : LABEL org.label-schema.build-date=$BUILD_DATE     org.label-schema.name="kube-bench"     org.label-schema.description="Run the CIS Kubernetes Benchmark tests"     org.label-schema.url="https://github.com/aquasecurity/kube-bench"     org.label-schema.vcs-ref=$VCS_REF     org.label-schema.vcs-url="https://github.com/aquasecurity/kube-bench"     org.label-schema.schema-version="1.0"
+ ---> Running in c964e4461eb6
+Removing intermediate container c964e4461eb6
+ ---> 98cd55a885b7
+Successfully built 98cd55a885b7
+Successfully tagged k8s/kube-bench:latest
+
+CMD =>
+docker tag k8s/kube-bench:latest 758878116931.dkr.ecr.us-west-2.amazonaws.com/k8s/kube-bench:latest
+
+CMD =>
+docker push 758878116931.dkr.ecr.us-west-2.amazonaws.com/k8s/kube-bench:latest
+
+
